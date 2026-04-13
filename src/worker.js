@@ -32,5 +32,94 @@ export function formatVideos(fxData) {
     .sort((a, b) => b.bitrate - a.bitrate);
 }
 
-// Worker ハンドラー (Task 3 で追加)
-export default {};
+// ─── ユーティリティ ───────────────────────────────────────────
+
+function jsonResponse(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    }
+  });
+}
+
+function jsonError(message, status = 400) {
+  return jsonResponse({ error: message }, status);
+}
+
+// ─── API ハンドラー ───────────────────────────────────────────
+
+async function handleExtract(request) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError('Invalid JSON body', 400);
+  }
+
+  const { tweetUrl } = body;
+  if (!tweetUrl) return jsonError('tweetUrl is required', 400);
+
+  const info = extractTweetInfo(tweetUrl);
+  if (!info) return jsonError('Invalid tweet URL', 400);
+
+  let fxRes;
+  try {
+    fxRes = await fetch(
+      `https://api.fxtwitter.com/${info.username}/status/${info.tweetId}`,
+      { headers: { 'User-Agent': 'xvault/1.0' } }
+    );
+  } catch {
+    return jsonError('Failed to reach fxtwitter API', 502);
+  }
+
+  if (!fxRes.ok) {
+    return jsonError('Tweet not found or unavailable', fxRes.status === 404 ? 404 : 502);
+  }
+
+  let data;
+  try {
+    data = await fxRes.json();
+  } catch {
+    return jsonError('Invalid response from fxtwitter API', 502);
+  }
+
+  const tweet = data.tweet;
+  const videos = formatVideos(data);
+
+  return jsonResponse({
+    tweetId: info.tweetId,
+    author: tweet?.author?.screen_name || info.username,
+    text: tweet?.text || '',
+    videos
+  });
+}
+
+// ─── Worker エントリポイント ──────────────────────────────────
+
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+
+    // CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type'
+        }
+      });
+    }
+
+    if (url.pathname === '/api/extract' && request.method === 'POST') {
+      return handleExtract(request);
+    }
+
+    // フロントエンド HTML は Task 4 で追加
+    return new Response('<h1>XVAULT</h1><p>Coming soon</p>', {
+      headers: { 'Content-Type': 'text/html;charset=UTF-8' }
+    });
+  }
+};
