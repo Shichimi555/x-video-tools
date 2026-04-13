@@ -67,4 +67,33 @@ describe('formatVideos', () => {
     expect(formatVideos({})).toEqual([]);
     expect(formatVideos(null)).toEqual([]);
   });
+
+  it('複数の動画がある場合はすべてのバリアントをビットレート降順でマージする', () => {
+    const multiVideoData = {
+      tweet: {
+        media: {
+          videos: [
+            {
+              width: 1280, height: 720,
+              variants: [
+                { url: 'https://video.twimg.com/v1-high.mp4', type: 'video/mp4', bitrate: 2176000 }
+              ]
+            },
+            {
+              width: 640, height: 360,
+              variants: [
+                { url: 'https://video.twimg.com/v2-low.mp4', type: 'video/mp4', bitrate: 500000 },
+                { url: 'https://video.twimg.com/v2-mid.mp4', type: 'video/mp4', bitrate: 832000 }
+              ]
+            }
+          ]
+        }
+      }
+    };
+    const result = formatVideos(multiVideoData);
+    expect(result).toHaveLength(3);
+    expect(result[0].bitrate).toBe(2176000);
+    expect(result[1].bitrate).toBe(832000);
+    expect(result[2].bitrate).toBe(500000);
+  });
 });

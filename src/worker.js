@@ -1,6 +1,6 @@
 /**
  * XのポストURLからユーザー名とツイートIDを抽出する。
- * @param {string} url
+ * @param {string|null|undefined} url
  * @returns {{ username: string, tweetId: string } | null}
  */
 export function extractTweetInfo(url) {
