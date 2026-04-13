@@ -21,6 +21,8 @@ describe('extractTweetInfo', () => {
     expect(extractTweetInfo('https://example.com/foo')).toBeNull();
     expect(extractTweetInfo('not-a-url')).toBeNull();
     expect(extractTweetInfo('')).toBeNull();
+    expect(extractTweetInfo(null)).toBeNull();
+    expect(extractTweetInfo(undefined)).toBeNull();
   });
 });
 
@@ -95,5 +97,16 @@ describe('formatVideos', () => {
     expect(result[0].bitrate).toBe(2176000);
     expect(result[1].bitrate).toBe(832000);
     expect(result[2].bitrate).toBe(500000);
+  });
+
+  it('variantsが未定義の動画は無視する', () => {
+    const data = {
+      tweet: {
+        media: {
+          videos: [{ width: 1280, height: 720 }]
+        }
+      }
+    };
+    expect(formatVideos(data)).toEqual([]);
   });
 });

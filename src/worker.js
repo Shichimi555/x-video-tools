@@ -341,7 +341,7 @@ const HTML = /* html */`<!DOCTYPE html>
     <div class="url-row">
       <span class="url-display" id="urlDisplay"></span>
       <button class="copy-btn" id="copyBtn">Copy URL</button>
-      <a class="dl-btn" id="dlBtn" target="_blank" rel="noopener">Download</a>
+      <button class="dl-btn" id="dlBtn">Download</button>
     </div>
   </div>
 
@@ -386,8 +386,7 @@ const HTML = /* html */`<!DOCTYPE html>
     currentUrl = url;
     videoPlayer.src = url;
     urlDisplay.textContent = url;
-    dlBtn.href = url;
-    dlBtn.setAttribute('download', 'xvault-video.mp4');
+    dlBtn.dataset.url = url;
   }
 
   function renderQualities() {
@@ -449,6 +448,29 @@ const HTML = /* html */`<!DOCTYPE html>
 
   extractBtn.addEventListener('click', doExtract);
   urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') doExtract(); });
+
+  dlBtn.addEventListener('click', async () => {
+    const url = dlBtn.dataset.url;
+    if (!url) return;
+    const origText = dlBtn.textContent;
+    dlBtn.disabled = true;
+    dlBtn.textContent = 'Downloading\u2026';
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = 'xvault-video.mp4';
+      a.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, '_blank');
+    } finally {
+      dlBtn.disabled = false;
+      dlBtn.textContent = origText;
+    }
+  });
 
   copyBtn.addEventListener('click', async () => {
     if (!currentUrl) return;
@@ -546,7 +568,7 @@ async function handleExtract(request) {
   }
 
   if (!fxRes.ok) {
-    return jsonError('Tweet not found or unavailable', fxRes.status === 404 ? 404 : 502);
+    return jsonError('Tweet not found or unavailable', 502);
   }
 
   let data;
@@ -573,21 +595,22 @@ export default {
   async fetch(request) {
     const url = new URL(request.url);
 
-    // CORS preflight
-    if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        status: 204,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
-        }
-      });
-    }
-
     if (url.pathname === '/api/extract') {
+      if (request.method === 'OPTIONS') {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+          }
+        });
+      }
       if (request.method !== 'POST') {
-        return new Response('Method Not Allowed', { status: 405 });
+        return new Response('Method Not Allowed', {
+          status: 405,
+          headers: { Allow: 'POST, OPTIONS' }
+        });
       }
       return handleExtract(request);
     }
@@ -595,7 +618,7 @@ export default {
     return new Response(HTML, {
       headers: {
         'Content-Type': 'text/html;charset=UTF-8',
-        'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; media-src https://video.twimg.com blob:; connect-src 'self'"
+        'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; media-src https://video.twimg.com blob:; connect-src 'self'"
       }
     });
   }
