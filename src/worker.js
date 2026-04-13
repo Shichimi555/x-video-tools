@@ -395,7 +395,7 @@ const HTML = /* html */`<!DOCTYPE html>
     videos.forEach((v, i) => {
       const btn = document.createElement('button');
       btn.className = 'quality-btn' + (i === 0 ? ' active' : '');
-      btn.textContent = v.width + 'p \u00b7 ' + Math.round(v.bitrate / 1000) + 'k';
+      btn.textContent = v.height + 'p \u00b7 ' + Math.round(v.bitrate / 1000) + 'k';
       btn.addEventListener('click', () => {
         qualityRow.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -435,6 +435,7 @@ const HTML = /* html */`<!DOCTYPE html>
 
       setSource(videos[0].url);
       renderQualities();
+      errorCard.classList.remove('visible');
       resultCard.classList.add('visible');
 
     } catch {
@@ -592,7 +593,10 @@ export default {
     }
 
     return new Response(HTML, {
-      headers: { 'Content-Type': 'text/html;charset=UTF-8' }
+      headers: {
+        'Content-Type': 'text/html;charset=UTF-8',
+        'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; media-src https://video.twimg.com blob:; connect-src 'self'"
+      }
     });
   }
 };
